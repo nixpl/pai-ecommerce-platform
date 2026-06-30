@@ -4,33 +4,45 @@ const { ApiErrors } = require('../errors/apiErrors');
 
 const PRODUCT_CATALOG_URL = process.env.PRODUCT_CATALOG_SERVICE_URL || 'http://localhost:3003';
 
-const getServiceToken = () => jwt.sign(
-  { id: 0, role: 'admin' },
-  process.env.JWT_SECRET,
-  { expiresIn: '1h' }
-);
+const getServiceToken = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new AppError(ApiErrors.EXTERNAL_SERVICE_ERROR);
+  }
+  return jwt.sign(
+    { id: 0, role: 'admin' },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+};
 
 const handleResponse = async (response) => {
   if (response.ok) {
     if (response.status === 204) return null;
     return response.json();
   }
+
+  if (response.status === 404) {
+    throw new AppError(ApiErrors.INSUFFICIENT_STOCK);
+  }
+
   throw new AppError(ApiErrors.EXTERNAL_SERVICE_ERROR);
 };
 
 class ProductCatalogClient {
   static async getVariant(variantId) {
-    const response = await fetch(`${PRODUCT_CATALOG_URL}/api/products`);
-    const products = await handleResponse(response);
-
-    for (const product of products) {
-      const variant = (product.variants || []).find((item) => item.id === variantId);
-      if (variant) {
-        return { ...variant, product };
-      }
+    const id = Number(variantId);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new AppError(ApiErrors.VALIDATION_ERROR);
     }
 
-    throw new AppError(ApiErrors.EXTERNAL_SERVICE_ERROR);
+    let response;
+    try {
+      response = await fetch(`${PRODUCT_CATALOG_URL}/api/variants/${id}`);
+    } catch {
+      throw new AppError(ApiErrors.EXTERNAL_SERVICE_ERROR);
+    }
+
+    return handleResponse(response);
   }
 
   static async updateStock(variantId, stockQuantity) {

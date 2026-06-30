@@ -1,0 +1,1981 @@
+openapi: 3.0.3
+info:
+  title: PAI E-Commerce Platform API
+  version: 1.0.0
+  description: |
+    Zbiorcza specyfikacja OpenAPI 3.0 dla platformy e-commerce opartej o mikroserwisy.
+
+    ## Architektura
+
+    | Serwis | Port | Bazowy URL |
+    |--------|------|------------|
+    | Auth Service | 3001 | `http://localhost:3001` |
+    | Profile Service | 3002 | `http://localhost:3002` |
+    | Product Catalog Service | 3003 | `http://localhost:3003` |
+    | Order Service | 3004 | `http://localhost:3004` |
+
+    Każda operacja wskazuje właściwy serwer (`servers` na poziomie ścieżki).
+    W Swagger UI wybierz serwer zgodny z tagiem operacji.
+
+    ## Autoryzacja
+
+    Chronione endpointy wymagają nagłówka `Authorization: Bearer <JWT>`.
+    Token uzyskuje się z `POST /api/auth/login`. Payload JWT: `{ id, role, iat, exp }`.
+    Role: `client`, `admin`, `super_admin`.
+
+    ## Format błędów
+
+    Wszystkie błędy zwracane są w jednolitym formacie JSON:
+
+    ```json
+    {
+      "error": {
+        "status": 400,
+        "code": 14000,
+        "message": "Błąd walidacji danych wejściowych.",
+        "timestamp": "2026-06-30T12:00:00.000Z",
+        "path": "/api/auth/register",
+        "details": [
+          { "code": 1, "field": "email", "message": "Pole nie może być puste." }
+        ]
+      }
+    }
+    ```
+
+    Pole `details` występuje wyłącznie przy błędach walidacji (`VALIDATION_ERROR`).
+    Tablica może zawierać wiele wpisów (po jednym na każde niepoprawne pole).
+
+    ### Kody szczegółów walidacji (`details[].code`)
+
+    | Kod | Znaczenie | Przykładowy komunikat |
+    |-----|-----------|----------------------|
+    | 1 | Puste pole | `Pole nie może być puste.` |
+    | 2 | Nieprawidłowy format | `Oczekiwany format: user@example.com.` |
+    | 3 | Nieprawidłowa długość | `Długość pola musi wynosić od 8 do 50 znaków.` |
+    | 4 | Słabe hasło | `Hasło jest zbyt słabe. Wymagane: minimum 1 wielka litera...` |
+
+    ### Konwencja kodów błędów API (`error.code`)
+
+    Format: `[mikroserwis][typ HTTP][identyfikator]`
+    - Mikroserwis: 1=Auth, 2=Profile, 3=Catalog, 4=Order, 9=Shared
+    - Typ HTTP: 4=błąd klienta, 5=błąd serwera
+
+tags:
+  - name: Auth
+    description: Auth Service (`:3001`) — rejestracja, logowanie, zarządzanie rolami
+  - name: Profile
+    description: Profile Service (`:3002`) — dane osobowe użytkownika
+  - name: Addresses
+    description: Profile Service (`:3002`) — adresy dostawy
+  - name: Products
+    description: Catalog Service (`:3003`) — produkty i warianty
+  - name: Categories
+    description: Catalog Service (`:3003`) — kategorie
+  - name: Variants
+    description: Catalog Service (`:3003`) — zarządzanie wariantami
+  - name: Cart
+    description: Order Service (`:3004`) — koszyk zakupów
+  - name: Orders
+    description: Order Service (`:3004`) — zamówienia
+
+servers:
+  - url: http://localhost:3001
+    description: Auth Service (domyślny — patrz `servers` przy operacji)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT z endpointu `POST /api/auth/login`
+
+  schemas:
+    ValidationDetail:
+      type: object
+      required: [code, field, message]
+      properties:
+        code:
+          type: integer
+          description: Kod szczegółu walidacji (1–4)
+          enum: [1, 2, 3, 4]
+        field:
+          type: string
+          description: Nazwa pola z żądania
+        message:
+          type: string
+          description: Czytelny komunikat błędu po polsku
+
+    ApiErrorBody:
+      type: object
+      required: [status, code, message, timestamp, path]
+      properties:
+        status:
+          type: integer
+          description: Kod HTTP
+        code:
+          type: integer
+          description: Unikalny kod błędu aplikacji
+        message:
+          type: string
+          description: Ogólny komunikat błędu
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          description: Ścieżka żądania
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationDetail'
+          description: Szczegóły walidacji (tylko przy VALIDATION_ERROR)
+
+    ApiErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ApiErrorBody'
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [client, admin, super_admin]
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          example: jan.kowalski@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 50
+          description: |
+            Wymagania: 8–50 znaków, min. 1 wielka litera, 1 mała litera,
+            1 cyfra, 1 znak specjalny (@$!%*?&)
+          example: Haslo123!
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          maxLength: 254
+        password:
+          type: string
+          maxLength: 50
+
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT ważny 1 godzinę
+
+    AssignRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [client, admin]
+          description: Nie można przypisać roli `super_admin` przez API
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: integer
+        account_id:
+          type: integer
+        first_name:
+          type: string
+        last_name:
+          type: string
+        phone:
+          type: string
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProfileInput:
+      type: object
+      required: [first_name, last_name, phone]
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 15
+          description: Tylko cyfry, np. `123456789`
+
+    ProfileUpdateInput:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 15
+
+    Address:
+      type: object
+      properties:
+        id:
+          type: integer
+        profile_id:
+          type: integer
+        street:
+          type: string
+        building_number:
+          type: string
+        city:
+          type: string
+        zip_code:
+          type: string
+        country:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AddressInput:
+      type: object
+      required: [street, building_number, city, zip_code, country]
+      properties:
+        street:
+          type: string
+          minLength: 1
+          maxLength: 100
+        building_number:
+          type: string
+          minLength: 1
+          maxLength: 10
+        city:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zip_code:
+          type: string
+          description: Format `12-345` lub `12345`
+          example: 00-001
+        country:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Polska
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CategoryTreeNode:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTreeNode'
+
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        parent_id:
+          type: integer
+          nullable: true
+          description: ID kategorii nadrzędnej (opcjonalnie)
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          type: string
+          description: DECIMAL(10,2) zwracany jako string
+          example: "99.99"
+        category_id:
+          type: integer
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+        category:
+          $ref: '#/components/schemas/Category'
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductInput:
+      type: object
+      required: [name, price]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+          minimum: 0
+          description: Liczba nieujemna
+        category_id:
+          type: integer
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+
+    Variant:
+      type: object
+      properties:
+        id:
+          type: integer
+        product_id:
+          type: integer
+        size:
+          type: string
+        color:
+          type: string
+        stock_quantity:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VariantInput:
+      type: object
+      required: [size, color]
+      properties:
+        size:
+          type: string
+          minLength: 1
+          maxLength: 50
+        color:
+          type: string
+          minLength: 1
+          maxLength: 50
+        stock_quantity:
+          type: integer
+          minimum: 0
+          default: 0
+
+    VariantStockInput:
+      type: object
+      required: [stock_quantity]
+      properties:
+        stock_quantity:
+          type: integer
+          minimum: 0
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        variant_id:
+          type: integer
+        quantity:
+          type: integer
+        unit_price:
+          type: number
+        line_total:
+          type: number
+        product_name:
+          type: string
+        size:
+          type: string
+        color:
+          type: string
+        stock_quantity:
+          type: integer
+
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        total:
+          type: number
+
+    AddCartItemRequest:
+      type: object
+      required: [variant_id]
+      properties:
+        variant_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        variant_id:
+          type: integer
+        quantity:
+          type: integer
+        unit_price:
+          type: string
+        product_name:
+          type: string
+        size:
+          type: string
+        color:
+          type: string
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        status:
+          type: string
+          enum: [NEW, PAID, SHIPPED, CANCELLED]
+        total:
+          type: string
+        source_address_id:
+          type: integer
+        street:
+          type: string
+        building_number:
+          type: string
+        city:
+          type: string
+        zip_code:
+          type: string
+        country:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      type: object
+      required: [address_id]
+      properties:
+        address_id:
+          type: integer
+          description: ID adresu z Profile Service
+
+    UpdateOrderStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [PAID, SHIPPED, CANCELLED]
+          description: |
+            Dozwolone przejścia:
+            - NEW → PAID, CANCELLED
+            - PAID → SHIPPED, CANCELLED
+            - SHIPPED → (brak)
+            - CANCELLED → (brak)
+
+  responses:
+    MissingToken:
+      description: Brak nagłówka Authorization (kod 94010)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          example:
+            error:
+              status: 401
+              code: 94010
+              message: Brak tokenu dostępu.
+              timestamp: '2026-06-30T12:00:00.000Z'
+              path: /api/profiles/me
+
+    InvalidToken:
+      description: Token nieważny lub wygasły (kod 94011)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          example:
+            error:
+              status: 401
+              code: 94011
+              message: Token jest nieważny lub wygasł.
+              timestamp: '2026-06-30T12:00:00.000Z'
+              path: /api/profiles/me
+
+    Forbidden:
+      description: Brak wymaganej roli (kod 94030)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          example:
+            error:
+              status: 403
+              code: 94030
+              message: Brak uprawnień do tego zasobu.
+              timestamp: '2026-06-30T12:00:00.000Z'
+              path: /api/products
+
+    ServerErrorAuth:
+      description: Wewnętrzny błąd serwera Auth (kod 15000)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          example:
+            error:
+              status: 500
+              code: 15000
+              message: Wewnętrzny błąd serwera.
+              timestamp: '2026-06-30T12:00:00.000Z'
+              path: /api/auth/login
+
+    ServerErrorProfile:
+      description: Wewnętrzny błąd serwera Profile (kod 25000)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+    ServerErrorCatalog:
+      description: Wewnętrzny błąd serwera Catalog (kod 35000)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+    ServerErrorOrder:
+      description: Wewnętrzny błąd serwera Order (kod 45000)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+paths:
+  /api/auth/register:
+    servers:
+      - url: http://localhost:3001
+    post:
+      tags: [Auth]
+      summary: Rejestracja konta klienta
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Konto utworzone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: |
+            Błąd walidacji (14000) lub e-mail zajęty (14002).
+
+            **Walidacja pola `email`:**
+            - kod 1: puste pole
+            - kod 2: nieprawidłowy format (oczekiwany `user@example.com`)
+            - kod 3: długość poza zakresem 1–254
+
+            **Walidacja pola `password`:**
+            - kod 1: puste pole
+            - kod 3: długość poza zakresem 8–50
+            - kod 4: słabe hasło (brak wielkiej/małej litery, cyfry lub znaku specjalnego)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                validation:
+                  summary: Błąd walidacji (14000)
+                  value:
+                    error:
+                      status: 400
+                      code: 14000
+                      message: Błąd walidacji danych wejściowych.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/auth/register
+                      details:
+                        - code: 1
+                          field: email
+                          message: Pole nie może być puste.
+                        - code: 4
+                          field: password
+                          message: 'Hasło jest zbyt słabe. Wymagane: minimum 1 wielka litera, 1 mała litera, 1 cyfra i 1 znak specjalny (@$!%*?&).'
+                emailTaken:
+                  summary: E-mail zajęty (14002)
+                  value:
+                    error:
+                      status: 400
+                      code: 14002
+                      message: Podany adres e-mail jest już zajęty.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/auth/register
+        '500':
+          $ref: '#/components/responses/ServerErrorAuth'
+
+  /api/auth/login:
+    servers:
+      - url: http://localhost:3001
+    post:
+      tags: [Auth]
+      summary: Logowanie i uzyskanie tokenu JWT
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Token JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: |
+            Błąd walidacji (14000).
+
+            **Walidacja `email` / `password`:**
+            - kod 1: puste pole
+            - kod 3: długość poza zakresem (email 1–254, hasło 1–50)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 400
+                  code: 14000
+                  message: Błąd walidacji danych wejściowych.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/auth/login
+                  details:
+                    - code: 1
+                      field: email
+                      message: Pole nie może być puste.
+        '401':
+          description: Nieprawidłowe dane logowania (14001)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 401
+                  code: 14001
+                  message: Nieprawidłowy adres e-mail lub hasło.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/auth/login
+        '500':
+          $ref: '#/components/responses/ServerErrorAuth'
+
+  /api/auth/accounts/{id}/role:
+    servers:
+      - url: http://localhost:3001
+    patch:
+      tags: [Auth]
+      summary: Przypisanie roli użytkownikowi
+      description: Wymaga roli `super_admin`. Nie można przypisać roli `super_admin`.
+      operationId: assignRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleRequest'
+      responses:
+        '200':
+          description: Zaktualizowane konto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Niedozwolona operacja (14004) — np. próba ustawienia `super_admin`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 400
+                  code: 14004
+                  message: Niedozwolona operacja.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/auth/accounts/2/role
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Użytkownik nie znaleziony (14003)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorAuth'
+
+  /api/profiles:
+    servers:
+      - url: http://localhost:3002
+    post:
+      tags: [Profile]
+      summary: Utworzenie profilu
+      operationId: createProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+      responses:
+        '201':
+          description: Profil utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: |
+            Błąd walidacji (24000).
+
+            - `first_name`, `last_name`: kod 1 (puste) lub 3 (długość 1–50)
+            - `phone`: kod 1, 3 (1–15) lub 2 (tylko cyfry)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 400
+                  code: 24000
+                  message: Błąd walidacji danych wejściowych.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles
+                  details:
+                    - code: 2
+                      field: phone
+                      message: 'Oczekiwany format: tylko cyfry, np. 123456789.'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '409':
+          description: Profil już istnieje (24009)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+
+  /api/profiles/me:
+    servers:
+      - url: http://localhost:3002
+    get:
+      tags: [Profile]
+      summary: Pobranie własnego profilu
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profil z listą adresów
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Profil nie znaleziony (24004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+    put:
+      tags: [Profile]
+      summary: Aktualizacja własnego profilu
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateInput'
+      responses:
+        '200':
+          description: Zaktualizowany profil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: Błąd walidacji (24000) — reguły jak przy tworzeniu profilu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Profil nie znaleziony (24004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+
+  /api/profiles/addresses:
+    servers:
+      - url: http://localhost:3002
+    get:
+      tags: [Addresses]
+      summary: Lista adresów użytkownika
+      operationId: listAddresses
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tablica adresów
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Address'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Profil nie znaleziony (24004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+    post:
+      tags: [Addresses]
+      summary: Dodanie adresu dostawy
+      operationId: createAddress
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        '201':
+          description: Adres utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          description: |
+            Błąd walidacji (24000).
+
+            - `street` (1–100), `building_number` (1–10), `city` (1–50), `country` (1–50): kod 1 lub 3
+            - `zip_code`: kod 1, 3 (5–6 znaków) lub 2 (format `12-345` / `12345`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 400
+                  code: 24000
+                  message: Błąd walidacji danych wejściowych.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/addresses
+                  details:
+                    - code: 2
+                      field: zip_code
+                      message: 'Oczekiwany format: 12-345 lub 12345.'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Profil nie znaleziony (24004) — wymagany profil przed dodaniem adresu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+
+  /api/profiles/addresses/{id}:
+    servers:
+      - url: http://localhost:3002
+    put:
+      tags: [Addresses]
+      summary: Aktualizacja adresu
+      operationId: updateAddress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        '200':
+          description: Zaktualizowany adres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          description: Błąd walidacji (24000)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Profil (24004) lub adres (24005) nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+    delete:
+      tags: [Addresses]
+      summary: Usunięcie adresu
+      operationId: deleteAddress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Adres usunięty
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Profil (24004) lub adres (24005) nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorProfile'
+
+  /api/products:
+    servers:
+      - url: http://localhost:3003
+    get:
+      tags: [Products]
+      summary: Lista produktów z filtrowaniem
+      operationId: listProducts
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Fragment nazwy produktu (LIKE)
+        - name: category
+          in: query
+          schema:
+            type: integer
+          description: ID kategorii
+        - name: priceMin
+          in: query
+          schema:
+            type: number
+        - name: priceMax
+          in: query
+          schema:
+            type: number
+        - name: size
+          in: query
+          schema:
+            type: string
+          description: Filtr po rozmiarze wariantu
+        - name: color
+          in: query
+          schema:
+            type: string
+          description: Filtr po kolorze wariantu
+      responses:
+        '200':
+          description: Lista produktów z kategorią i wariantami
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+    post:
+      tags: [Products]
+      summary: Utworzenie produktu
+      description: Wymaga roli `admin` lub `super_admin`
+      operationId: createProduct
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Produkt utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: |
+            Błąd walidacji (34000) lub kategoria nie znaleziona (34005).
+
+            - `name`: kod 1 lub 3 (1–150)
+            - `price`: kod 2 (liczba nieujemna)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                validation:
+                  value:
+                    error:
+                      status: 400
+                      code: 34000
+                      message: Błąd walidacji danych wejściowych.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/products
+                      details:
+                        - code: 1
+                          field: name
+                          message: Pole nie może być puste.
+                categoryNotFound:
+                  value:
+                    error:
+                      status: 404
+                      code: 34005
+                      message: Nie znaleziono kategorii.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/products
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/products/{id}:
+    servers:
+      - url: http://localhost:3003
+    get:
+      tags: [Products]
+      summary: Szczegóły produktu
+      operationId: getProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Produkt z kategorią i wariantami
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Produkt nie znaleziony (34004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+    put:
+      tags: [Products]
+      summary: Aktualizacja produktu
+      operationId: updateProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Zaktualizowany produkt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Błąd walidacji (34000)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Produkt (34004) lub kategoria (34005) nie znaleziona
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+    delete:
+      tags: [Products]
+      summary: Usunięcie produktu
+      operationId: deleteProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Produkt usunięty
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Produkt nie znaleziony (34004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/products/{id}/variants:
+    servers:
+      - url: http://localhost:3003
+    post:
+      tags: [Products]
+      summary: Dodanie wariantu do produktu
+      operationId: createVariantForProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID produktu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantInput'
+      responses:
+        '201':
+          description: Wariant utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variant'
+        '400':
+          description: |
+            Błąd walidacji (34000).
+
+            - `size`, `color`: kod 1 lub 3 (1–50)
+            - `stock_quantity`: kod 2 (liczba całkowita nieujemna)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Produkt nie znaleziony (34004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/categories:
+    servers:
+      - url: http://localhost:3003
+    get:
+      tags: [Categories]
+      summary: Drzewo kategorii
+      operationId: getCategoryTree
+      responses:
+        '200':
+          description: Kategorie w strukturze drzewa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryTreeNode'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+    post:
+      tags: [Categories]
+      summary: Utworzenie kategorii
+      operationId: createCategory
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Kategoria utworzona
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: |
+            Błąd walidacji (34000) lub niedozwolona operacja (34001).
+
+            - `name`: kod 1 lub 3 (1–100)
+            - `parent_id`: kod 2 (nieprawidłowy format — oczekiwana liczba całkowita)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Kategoria nadrzędna nie znaleziona (34005)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/categories/{id}:
+    servers:
+      - url: http://localhost:3003
+    put:
+      tags: [Categories]
+      summary: Aktualizacja kategorii
+      operationId: updateCategory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '200':
+          description: Zaktualizowana kategoria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Walidacja (34000) lub cykl w drzewie kategorii (34001)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Kategoria nie znaleziona (34005)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+    delete:
+      tags: [Categories]
+      summary: Usunięcie kategorii
+      description: Odłącza dzieci i produkty przed usunięciem
+      operationId: deleteCategory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Kategoria usunięta
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Kategoria nie znaleziona (34005)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/variants/{id}:
+    servers:
+      - url: http://localhost:3003
+    put:
+      tags: [Variants]
+      summary: Aktualizacja wariantu
+      operationId: updateVariant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantInput'
+      responses:
+        '200':
+          description: Zaktualizowany wariant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variant'
+        '400':
+          description: Błąd walidacji (34000)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Wariant nie znaleziony (34006)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+    delete:
+      tags: [Variants]
+      summary: Usunięcie wariantu
+      operationId: deleteVariant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Wariant usunięty
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Wariant nie znaleziony (34006)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/variants/{id}/stock:
+    servers:
+      - url: http://localhost:3003
+    patch:
+      tags: [Variants]
+      summary: Aktualizacja stanu magazynowego
+      operationId: updateVariantStock
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantStockInput'
+      responses:
+        '200':
+          description: Zaktualizowany wariant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variant'
+        '400':
+          description: |
+            Błąd walidacji (34000) — `stock_quantity`: kod 2 (liczba całkowita nieujemna)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Wariant nie znaleziony (34006)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorCatalog'
+
+  /api/cart:
+    servers:
+      - url: http://localhost:3004
+    get:
+      tags: [Cart]
+      summary: Pobranie koszyka
+      description: Tworzy pusty koszyk, jeśli użytkownik nie ma jeszcze koszyka
+      operationId: getCart
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Koszyk z wzbogaconymi pozycjami (dane z katalogu)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '502':
+          description: Błąd komunikacji z Catalog Service (44007)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+
+  /api/cart/items:
+    servers:
+      - url: http://localhost:3004
+    post:
+      tags: [Cart]
+      summary: Dodanie pozycji do koszyka
+      operationId: addCartItem
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+      responses:
+        '201':
+          description: Zaktualizowany koszyk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          description: |
+            Błąd walidacji (44000) — bez `details` przy nieprawidłowym `variant_id`,
+            lub z `details` przy `quantity` (kod 2: liczba całkowita > 0)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                invalidQuantity:
+                  value:
+                    error:
+                      status: 400
+                      code: 44000
+                      message: Błąd walidacji danych wejściowych.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/cart/items
+                      details:
+                        - code: 2
+                          field: quantity
+                          message: 'Oczekiwany format: liczba całkowita większa od 0.'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Wariant nie znaleziony w katalogu (propagacja 34006)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '502':
+          description: Błąd komunikacji z Catalog Service (44007)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+
+  /api/cart/items/{variantId}:
+    servers:
+      - url: http://localhost:3004
+    put:
+      tags: [Cart]
+      summary: Zmiana ilości pozycji w koszyku
+      operationId: updateCartItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemRequest'
+      responses:
+        '200':
+          description: Zaktualizowany koszyk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          description: Błąd walidacji `quantity` (44000)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Pozycja koszyka nie znaleziona (44002)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+    delete:
+      tags: [Cart]
+      summary: Usunięcie pozycji z koszyka
+      operationId: removeCartItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Zaktualizowany koszyk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Pozycja koszyka nie znaleziona (44002)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+
+  /api/orders:
+    servers:
+      - url: http://localhost:3004
+    post:
+      tags: [Orders]
+      summary: Złożenie zamówienia
+      description: |
+        Pobiera koszyk, rezerwuje stany magazynowe w katalogu, tworzy zamówienie
+        i czyści koszyk. Wymaga istniejącego adresu w Profile Service.
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Zamówienie utworzone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: |
+            - Walidacja `address_id` (44000) — brak lub nieprawidłowa wartość
+            - Pusty koszyk (44001)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                emptyCart:
+                  value:
+                    error:
+                      status: 400
+                      code: 44001
+                      message: Koszyk jest pusty.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/orders
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Adres dostawy nie znaleziony (44005)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '409':
+          description: Niewystarczający stan magazynowy (44006)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '502':
+          description: Błąd komunikacji z innym serwisem (44007)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+    get:
+      tags: [Orders]
+      summary: Lista własnych zamówień
+      operationId: listMyOrders
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista zamówień użytkownika
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+
+  /api/orders/admin/all:
+    servers:
+      - url: http://localhost:3004
+    get:
+      tags: [Orders]
+      summary: Lista wszystkich zamówień (admin)
+      operationId: listAllOrders
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Wszystkie zamówienia
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+
+  /api/orders/{id}:
+    servers:
+      - url: http://localhost:3004
+    get:
+      tags: [Orders]
+      summary: Szczegóły zamówienia
+      description: Klient widzi tylko własne zamówienia; admin widzi wszystkie
+      operationId: getOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Zamówienie z pozycjami
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '404':
+          description: Zamówienie nie znalezione (44003)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'
+
+  /api/orders/{id}/status:
+    servers:
+      - url: http://localhost:3004
+    patch:
+      tags: [Orders]
+      summary: Zmiana statusu zamówienia (admin)
+      description: |
+        Przy anulowaniu (CANCELLED) zwalniane są zarezerwowane stany magazynowe.
+      operationId: updateOrderStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: Zaktualizowane zamówienie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Nieprawidłowy status lub niedozwolone przejście (44004)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          $ref: '#/components/responses/MissingToken'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Zamówienie nie znalezione (44003)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '502':
+          description: Błąd komunikacji z Catalog Service przy anulowaniu (44007)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerErrorOrder'

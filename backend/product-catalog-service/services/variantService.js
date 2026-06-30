@@ -85,6 +85,14 @@ class VariantService {
     if (!variant) throw new AppError(ApiErrors.VARIANT_NOT_FOUND);
     await variant.destroy();
   }
+
+  static async getVariantById(id) {
+    const variant = await Variant.findByPk(id, {
+      include: [{ model: Product, as: 'product' }]
+    });
+    if (!variant) throw new AppError(ApiErrors.VARIANT_NOT_FOUND);
+    return variant;
+  }
 }
 
 module.exports = VariantService;

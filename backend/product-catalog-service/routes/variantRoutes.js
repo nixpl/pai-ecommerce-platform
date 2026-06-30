@@ -5,6 +5,7 @@ const { authMiddleware, requireAnyRole } = require('shared-utils');
 
 const requireAdmin = requireAnyRole('admin', 'super_admin');
 
+router.get('/:id', variantController.getVariant);
 router.put('/:id', authMiddleware, requireAdmin, variantController.updateVariant);
 router.patch('/:id/stock', authMiddleware, requireAdmin, variantController.updateStock);
 router.delete('/:id', authMiddleware, requireAdmin, variantController.deleteVariant);

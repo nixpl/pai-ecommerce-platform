@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as authApi from '../api/auth';
 import { getStoredToken, setStoredToken } from '../api/client';
+import { toErrorState } from '../utils/errors';
 import { decodeJwtPayload, isTokenExpired } from '../utils/jwt';
 
 const AuthContext = createContext(null);
@@ -33,7 +34,7 @@ export function AuthProvider({ children }) {
       setToken(newToken);
       return true;
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
       return false;
     } finally {
       setLoading(false);
@@ -47,7 +48,7 @@ export function AuthProvider({ children }) {
       await authApi.register(email, password);
       return await login(email, password);
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
       return false;
     } finally {
       setLoading(false);
@@ -65,6 +66,12 @@ export function AuthProvider({ children }) {
       logout();
     }
   }, [token, logout]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => logout();
+    window.addEventListener('pai:auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('pai:auth-expired', handleAuthExpired);
+  }, [logout]);
 
   const value = {
     token,

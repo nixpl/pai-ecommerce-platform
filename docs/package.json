@@ -1,0 +1,14 @@
+{
+  "name": "pai-api-docs",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Swagger UI dla zbiorczej specyfikacji OpenAPI platformy PAI E-Commerce",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  }
+}

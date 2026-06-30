@@ -5,6 +5,7 @@ import { fetchAddresses } from '../api/profile';
 import { useCart } from '../context/CartContext';
 import { Alert, EmptyState, LoadingSpinner } from '../components/ui';
 import { formatPrice } from '../utils/format';
+import { toErrorState } from '../utils/errors';
 
 export default function CheckoutPage() {
   const { cart, refreshCart } = useCart();
@@ -21,7 +22,7 @@ export default function CheckoutPage() {
         setAddresses(data);
         if (data.length) setSelectedAddress(String(data[0].id));
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(toErrorState(err)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -36,7 +37,7 @@ export default function CheckoutPage() {
       await refreshCart();
       navigate(`/orders/${order.id}`);
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     } finally {
       setSubmitting(false);
     }
@@ -63,10 +64,10 @@ export default function CheckoutPage() {
   return (
     <div className="page checkout-page">
       <h1>Złóż zamówienie</h1>
-      <Alert message={error} onClose={() => setError(null)} />
+      <Alert error={error} onClose={() => setError(null)} />
 
       <div className="checkout-grid">
-        <form onSubmit={handleSubmit} className="checkout-form card">
+        <form onSubmit={handleSubmit} className="checkout-form card" noValidate>
           <h2>Adres dostawy</h2>
           {addresses.length === 0 ? (
             <div>

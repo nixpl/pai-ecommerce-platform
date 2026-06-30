@@ -22,7 +22,14 @@ const buildCartResponse = async (cart) => {
   let total = 0;
 
   for (const item of items) {
-    const variant = await ProductCatalogClient.getVariant(item.variant_id);
+    let variant;
+    try {
+      variant = await ProductCatalogClient.getVariant(item.variant_id);
+    } catch (error) {
+      await item.destroy();
+      continue;
+    }
+
     const unitPrice = Number(variant.product.price);
     const lineTotal = unitPrice * item.quantity;
     total += lineTotal;
@@ -63,13 +70,21 @@ class CartService {
     const qtyErr = validateQuantity(quantity);
     if (qtyErr) throw new AppError(ApiErrors.VALIDATION_ERROR, [qtyErr]);
 
-    await ProductCatalogClient.getVariant(variantNum);
+    const variant = await ProductCatalogClient.getVariant(variantNum);
+    if (variant.stock_quantity <= 0) {
+      throw new AppError(ApiErrors.INSUFFICIENT_STOCK);
+    }
 
     const cart = await getOrCreateCart(userId);
     const existing = await CartItem.findOne({ where: { cart_id: cart.id, variant_id: variantNum } });
+    const newQuantity = existing ? existing.quantity + quantity : quantity;
+
+    if (newQuantity > variant.stock_quantity) {
+      throw new AppError(ApiErrors.INSUFFICIENT_STOCK);
+    }
 
     if (existing) {
-      await existing.update({ quantity: existing.quantity + quantity });
+      await existing.update({ quantity: newQuantity });
     } else {
       await CartItem.create({ cart_id: cart.id, variant_id: variantNum, quantity });
     }
@@ -84,6 +99,11 @@ class CartService {
     const cart = await getOrCreateCart(userId);
     const item = await CartItem.findOne({ where: { cart_id: cart.id, variant_id: variantId } });
     if (!item) throw new AppError(ApiErrors.CART_ITEM_NOT_FOUND);
+
+    const variant = await ProductCatalogClient.getVariant(variantId);
+    if (quantity > variant.stock_quantity) {
+      throw new AppError(ApiErrors.INSUFFICIENT_STOCK);
+    }
 
     await item.update({ quantity });
     return buildCartResponse(cart);

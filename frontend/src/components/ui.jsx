@@ -1,14 +1,38 @@
-export function Alert({ type = 'error', message, onClose }) {
-  if (!message) return null;
+import { partitionErrors, toErrorState } from '../utils/errors';
+
+export function Alert({ type = 'error', error, message, onClose }) {
+  const state = error ?? (message ? toErrorState(message) : null);
+  const { general } = partitionErrors(state);
+  if (!general.length) return null;
+
   return (
     <div className={`alert alert-${type}`} role="alert">
-      <span>{message}</span>
+      <div className="alert-content">
+        {general.length === 1 ? (
+          <span>{general[0]}</span>
+        ) : (
+          <ul className="alert-list">
+            {general.map((text, index) => (
+              <li key={index}>{text}</li>
+            ))}
+          </ul>
+        )}
+      </div>
       {onClose && (
         <button type="button" className="alert-close" onClick={onClose} aria-label="Zamknij">
           ×
         </button>
       )}
     </div>
+  );
+}
+
+export function FieldError({ message }) {
+  if (!message) return null;
+  return (
+    <span className="field-error" role="alert">
+      {message}
+    </span>
   );
 }
 

@@ -7,7 +7,8 @@ import {
   fetchMyProfile,
   updateProfile
 } from '../api/profile';
-import { Alert, LoadingSpinner } from '../components/ui';
+import { Alert, FieldError, LoadingSpinner } from '../components/ui';
+import { inputClassName, partitionErrors, toErrorState } from '../utils/errors';
 
 const emptyProfile = { first_name: '', last_name: '', phone: '' };
 const emptyAddress = {
@@ -28,6 +29,7 @@ export default function ProfilePage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [saving, setSaving] = useState(false);
+  const { fields } = partitionErrors(error);
 
   const loadData = async () => {
     setLoading(true);
@@ -48,7 +50,7 @@ export default function ProfilePage() {
         setNeedsProfile(true);
         setProfile(null);
       } else {
-        setError(err.message);
+        setError(toErrorState(err));
       }
     } finally {
       setLoading(false);
@@ -75,7 +77,7 @@ export default function ProfilePage() {
       }
       setSuccess('Profil zapisany.');
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     } finally {
       setSaving(false);
     }
@@ -92,7 +94,7 @@ export default function ProfilePage() {
       setAddressForm(emptyAddress);
       setSuccess('Adres dodany.');
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     } finally {
       setSaving(false);
     }
@@ -105,7 +107,7 @@ export default function ProfilePage() {
       setAddresses((prev) => prev.filter((a) => a.id !== id));
       setSuccess('Adres usunięty.');
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     }
   };
 
@@ -114,7 +116,7 @@ export default function ProfilePage() {
   return (
     <div className="page profile-page">
       <h1>Mój profil</h1>
-      <Alert message={error} onClose={() => setError(null)} />
+      <Alert error={error} onClose={() => setError(null)} />
       <Alert message={success} type="success" onClose={() => setSuccess(null)} />
 
       <div className="profile-grid">
@@ -125,37 +127,37 @@ export default function ProfilePage() {
               Profil jest wymagany przed dodaniem adresów dostawy.
             </p>
           )}
-          <form onSubmit={handleProfileSubmit} className="stack-form">
+          <form onSubmit={handleProfileSubmit} className="stack-form" noValidate>
             <label>
               Imię
               <input
-                className="input"
+                className={inputClassName('input', fields, 'first_name')}
                 value={profileForm.first_name}
                 onChange={(e) =>
                   setProfileForm((f) => ({ ...f, first_name: e.target.value }))
                 }
-                required
               />
+              <FieldError message={fields.first_name} />
             </label>
             <label>
               Nazwisko
               <input
-                className="input"
+                className={inputClassName('input', fields, 'last_name')}
                 value={profileForm.last_name}
                 onChange={(e) =>
                   setProfileForm((f) => ({ ...f, last_name: e.target.value }))
                 }
-                required
               />
+              <FieldError message={fields.last_name} />
             </label>
             <label>
               Telefon
               <input
-                className="input"
+                className={inputClassName('input', fields, 'phone')}
                 value={profileForm.phone}
                 onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))}
-                required
               />
+              <FieldError message={fields.phone} />
             </label>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Zapisywanie…' : needsProfile ? 'Utwórz profil' : 'Zapisz zmiany'}
@@ -193,64 +195,64 @@ export default function ProfilePage() {
               )}
 
               {!needsProfile && (
-                <form onSubmit={handleAddressSubmit} className="stack-form address-form">
+                <form onSubmit={handleAddressSubmit} className="stack-form address-form" noValidate>
                   <h3>Dodaj adres</h3>
                   <label>
                     Ulica
                     <input
-                      className="input"
+                      className={inputClassName('input', fields, 'street')}
                       value={addressForm.street}
                       onChange={(e) =>
                         setAddressForm((f) => ({ ...f, street: e.target.value }))
                       }
-                      required
                     />
+                    <FieldError message={fields.street} />
                   </label>
                   <label>
                     Nr budynku
                     <input
-                      className="input"
+                      className={inputClassName('input', fields, 'building_number')}
                       value={addressForm.building_number}
                       onChange={(e) =>
                         setAddressForm((f) => ({ ...f, building_number: e.target.value }))
                       }
-                      required
                     />
+                    <FieldError message={fields.building_number} />
                   </label>
                   <div className="form-row">
                     <label>
                       Miasto
                       <input
-                        className="input"
+                        className={inputClassName('input', fields, 'city')}
                         value={addressForm.city}
                         onChange={(e) =>
                           setAddressForm((f) => ({ ...f, city: e.target.value }))
                         }
-                        required
                       />
+                      <FieldError message={fields.city} />
                     </label>
                     <label>
                       Kod pocztowy
                       <input
-                        className="input"
+                        className={inputClassName('input', fields, 'zip_code')}
                         value={addressForm.zip_code}
                         onChange={(e) =>
                           setAddressForm((f) => ({ ...f, zip_code: e.target.value }))
                         }
-                        required
                       />
+                      <FieldError message={fields.zip_code} />
                     </label>
                   </div>
                   <label>
                     Kraj
                     <input
-                      className="input"
+                      className={inputClassName('input', fields, 'country')}
                       value={addressForm.country}
                       onChange={(e) =>
                         setAddressForm((f) => ({ ...f, country: e.target.value }))
                       }
-                      required
                     />
+                    <FieldError message={fields.country} />
                   </label>
                   <button type="submit" className="btn btn-secondary" disabled={saving}>
                     Dodaj adres

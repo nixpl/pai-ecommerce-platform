@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchAllOrders, updateOrderStatus } from '../api/orders';
 import { createCategory, createProduct, createVariant } from '../api/catalog';
-import { Alert, LoadingSpinner } from '../components/ui';
+import { Alert, FieldError, LoadingSpinner } from '../components/ui';
 import { formatDate, formatOrderStatus, formatPrice } from '../utils/format';
+import { inputClassName, partitionErrors, toErrorState } from '../utils/errors';
 
 const NEXT_STATUS = {
   NEW: ['PAID', 'CANCELLED'],
@@ -18,6 +19,7 @@ export default function AdminPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [busyOrder, setBusyOrder] = useState(null);
+  const { fields } = partitionErrors(error);
 
   const [productForm, setProductForm] = useState({
     name: '',
@@ -38,7 +40,7 @@ export default function AdminPage() {
     setLoading(true);
     fetchAllOrders()
       .then(setOrders)
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(toErrorState(err)))
       .finally(() => setLoading(false));
   };
 
@@ -54,7 +56,7 @@ export default function AdminPage() {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
       setSuccess(`Status zamówienia #${orderId} zmieniony na ${formatOrderStatus(status)}.`);
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     } finally {
       setBusyOrder(null);
     }
@@ -78,7 +80,7 @@ export default function AdminPage() {
       setProductForm({ name: '', description: '', price: '', category_id: '', images: '' });
       setSuccess('Produkt utworzony.');
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     }
   };
 
@@ -95,7 +97,7 @@ export default function AdminPage() {
       setVariantForm({ product_id: '', size: '', color: '', stock_quantity: '' });
       setSuccess('Wariant dodany.');
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     }
   };
 
@@ -111,7 +113,7 @@ export default function AdminPage() {
       setCategoryForm({ name: '', parent_id: '' });
       setSuccess('Kategoria utworzona.');
     } catch (err) {
-      setError(err.message);
+      setError(toErrorState(err));
     }
   };
 
@@ -137,7 +139,7 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <Alert message={error} onClose={() => setError(null)} />
+      <Alert error={error} onClose={() => setError(null)} />
       <Alert message={success} type="success" onClose={() => setSuccess(null)} />
 
       {tab === 'orders' && (
@@ -180,16 +182,16 @@ export default function AdminPage() {
 
       {tab === 'catalog' && (
         <div className="admin-catalog-grid">
-          <form onSubmit={handleCreateCategory} className="card stack-form">
+          <form onSubmit={handleCreateCategory} className="card stack-form" noValidate>
             <h2>Nowa kategoria</h2>
             <label>
               Nazwa
               <input
-                className="input"
+                className={inputClassName('input', fields, 'name')}
                 value={categoryForm.name}
                 onChange={(e) => setCategoryForm((f) => ({ ...f, name: e.target.value }))}
-                required
               />
+              <FieldError message={fields.name} />
             </label>
             <label>
               ID kategorii nadrzędnej (opcjonalnie)
@@ -204,16 +206,16 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <form onSubmit={handleCreateProduct} className="card stack-form">
+          <form onSubmit={handleCreateProduct} className="card stack-form" noValidate>
             <h2>Nowy produkt</h2>
             <label>
               Nazwa
               <input
-                className="input"
+                className={inputClassName('input', fields, 'name')}
                 value={productForm.name}
                 onChange={(e) => setProductForm((f) => ({ ...f, name: e.target.value }))}
-                required
               />
+              <FieldError message={fields.name} />
             </label>
             <label>
               Opis
@@ -230,13 +232,12 @@ export default function AdminPage() {
               Cena
               <input
                 type="number"
-                min="0"
                 step="0.01"
-                className="input"
+                className={inputClassName('input', fields, 'price')}
                 value={productForm.price}
                 onChange={(e) => setProductForm((f) => ({ ...f, price: e.target.value }))}
-                required
               />
+              <FieldError message={fields.price} />
             </label>
             <label>
               ID kategorii
@@ -261,49 +262,48 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <form onSubmit={handleCreateVariant} className="card stack-form">
+          <form onSubmit={handleCreateVariant} className="card stack-form" noValidate>
             <h2>Nowy wariant</h2>
             <label>
               ID produktu
               <input
-                className="input"
+                className={inputClassName('input', fields, 'product_id')}
                 value={variantForm.product_id}
                 onChange={(e) =>
                   setVariantForm((f) => ({ ...f, product_id: e.target.value }))
                 }
-                required
               />
+              <FieldError message={fields.product_id} />
             </label>
             <label>
               Rozmiar
               <input
-                className="input"
+                className={inputClassName('input', fields, 'size')}
                 value={variantForm.size}
                 onChange={(e) => setVariantForm((f) => ({ ...f, size: e.target.value }))}
-                required
               />
+              <FieldError message={fields.size} />
             </label>
             <label>
               Kolor
               <input
-                className="input"
+                className={inputClassName('input', fields, 'color')}
                 value={variantForm.color}
                 onChange={(e) => setVariantForm((f) => ({ ...f, color: e.target.value }))}
-                required
               />
+              <FieldError message={fields.color} />
             </label>
             <label>
               Stan magazynowy
               <input
                 type="number"
-                min="0"
-                className="input"
+                className={inputClassName('input', fields, 'stock_quantity')}
                 value={variantForm.stock_quantity}
                 onChange={(e) =>
                   setVariantForm((f) => ({ ...f, stock_quantity: e.target.value }))
                 }
-                required
               />
+              <FieldError message={fields.stock_quantity} />
             </label>
             <button type="submit" className="btn btn-primary">
               Dodaj wariant

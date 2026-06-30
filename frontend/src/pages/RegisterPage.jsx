@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Alert } from '../components/ui';
+import { Alert, FieldError } from '../components/ui';
+import { inputClassName, partitionErrors } from '../utils/errors';
 
 export default function RegisterPage() {
   const { register, loading, error, clearError } = useAuth();
@@ -10,6 +11,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const { fields } = partitionErrors(error);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,24 +29,23 @@ export default function RegisterPage() {
     <div className="page auth-page">
       <div className="auth-card">
         <h1>Rejestracja</h1>
-        <p className="auth-sub">Utwórz konto klienta w serwisie auth-service.</p>
 
-        <Alert message={error} onClose={clearError} />
+        <Alert error={error} onClose={clearError} />
         {password !== confirm && confirm && (
           <Alert message="Hasła nie są identyczne." />
         )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <label>
             E-mail
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
               autoComplete="email"
-              className="input"
+              className={inputClassName('input', fields, 'email')}
             />
+            <FieldError message={fields.email} />
           </label>
           <label>
             Hasło
@@ -52,11 +53,10 @@ export default function RegisterPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
               autoComplete="new-password"
-              className="input"
+              className={inputClassName('input', fields, 'password')}
             />
+            <FieldError message={fields.password} />
           </label>
           <label>
             Powtórz hasło
@@ -64,7 +64,6 @@ export default function RegisterPage() {
               type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              required
               className="input"
             />
           </label>

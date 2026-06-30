@@ -2,6 +2,7 @@ const sequelize = require('../config/database');
 const Profile = require('./Profile');
 const Address = require('./Address');
 
+// Relacje: jeden profil → wiele adresów dostawy
 Profile.hasMany(Address, { foreignKey: 'profile_id', as: 'addresses' });
 Address.belongsTo(Profile, { foreignKey: 'profile_id', as: 'profile' });
 

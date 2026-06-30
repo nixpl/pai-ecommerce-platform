@@ -1,5 +1,14 @@
 const VariantService = require('../services/variantService');
 
+const getVariant = async (req, res, next) => {
+  try {
+    const variant = await VariantService.getVariantById(parseInt(req.params.id, 10));
+    res.json(variant);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createVariant = async (req, res, next) => {
   try {
     const variant = await VariantService.createVariant(parseInt(req.params.id, 10), req.body);
@@ -36,4 +45,4 @@ const deleteVariant = async (req, res, next) => {
   }
 };
 
-module.exports = { createVariant, updateVariant, updateStock, deleteVariant };
+module.exports = { getVariant, createVariant, updateVariant, updateStock, deleteVariant };

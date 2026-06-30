@@ -48,10 +48,9 @@ export default function HomePage() {
     <div className="page">
       <section className="hero">
         <div className="hero-content">
-          <p className="hero-eyebrow">Mikroserwisy · REST · JWT</p>
           <h1>Odkryj produkty w PAI Shop</h1>
           <p className="hero-sub">
-            Przeglądaj katalog, dodawaj do koszyka i składaj zamówienia — wszystko asynchronicznie przez REST API.
+            Przeglądaj, dodawaj do koszyka i składaj zamówienia.
           </p>
         </div>
       </section>

@@ -52,6 +52,10 @@ export async function apiFetch(url, options = {}) {
 
   if (!response.ok) {
     const err = data?.error;
+    if (response.status === 401 && (err?.code === 94010 || err?.code === 94011)) {
+      setStoredToken(null);
+      window.dispatchEvent(new Event('pai:auth-expired'));
+    }
     throw new ApiError(
       err?.message || 'Wystąpił błąd serwera',
       response.status,

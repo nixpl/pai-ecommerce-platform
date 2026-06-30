@@ -182,15 +182,6 @@ img {
   margin-bottom: 2rem;
 }
 
-.hero-eyebrow {
-  color: var(--secondary);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: 0 0 0.5rem;
-}
-
 .hero h1 {
   margin: 0 0 0.75rem;
   font-size: clamp(1.75rem, 4vw, 2.5rem);
@@ -821,6 +812,19 @@ textarea.input:focus {
   color: #a7f3d0;
 }
 
+.alert-content {
+  flex: 1;
+}
+
+.alert-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.alert-list li + li {
+  margin-top: 0.25rem;
+}
+
 .alert-close {
   background: none;
   border: none;
@@ -828,6 +832,17 @@ textarea.input:focus {
   font-size: 1.25rem;
   cursor: pointer;
   line-height: 1;
+}
+
+.field-error {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: #fecaca;
+}
+
+.input-invalid {
+  border-color: rgba(248, 113, 113, 0.65);
 }
 
 .loading-state {
@@ -863,17 +878,4 @@ textarea.input:focus {
 .empty-state h3 {
   color: var(--text);
   margin-bottom: 0.5rem;
-}
-
-.footer {
-  border-top: 1px solid var(--border);
-  padding: 1.25rem 0;
-  margin-top: auto;
-}
-
-.footer-inner p {
-  margin: 0;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.85rem;
 }

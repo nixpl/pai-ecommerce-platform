@@ -40,3 +40,15 @@ export async function createCategory(data) {
     body: JSON.stringify(data)
   });
 }
+
+export async function deleteCategory(id) {
+  return apiFetch(`${base}/categories/${id}`, { method: 'DELETE' });
+}
+
+export async function deleteProduct(id) {
+  return apiFetch(`${base}/products/${id}`, { method: 'DELETE' });
+}
+
+export async function deleteVariant(id) {
+  return apiFetch(`${base}/variants/${id}`, { method: 'DELETE' });
+}

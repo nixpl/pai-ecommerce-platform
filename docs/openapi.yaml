@@ -830,7 +830,30 @@ paths:
                   timestamp: '2026-06-30T12:00:00.000Z'
                   path: /api/auth/accounts/2/role
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/auth/accounts/2/role
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/auth/accounts/2/role
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -839,6 +862,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 404
+                  code: 14003
+                  message: Nie znaleziono użytkownika.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/auth/accounts/999/role
         '500':
           $ref: '#/components/responses/ServerErrorAuth'
 
@@ -886,13 +916,43 @@ paths:
                       field: phone
                       message: 'Oczekiwany format: tylko cyfry, np. 123456789.'
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles
         '409':
           description: Profil już istnieje (24009)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 409
+                  code: 24009
+                  message: Profil już istnieje.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
 
@@ -913,13 +973,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/Profile'
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/me
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/me
         '404':
           description: Profil nie znaleziony (24004)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 404
+                  code: 24004
+                  message: Nie znaleziono profilu.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/me
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
     put:
@@ -947,14 +1037,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 400
+                  code: 24000
+                  message: Błąd walidacji danych wejściowych.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/me
+                  details:
+                    - code: 3
+                      field: first_name
+                      message: Długość pola musi wynosić od 1 do 50 znaków.
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/me
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/me
         '404':
           description: Profil nie znaleziony (24004)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 404
+                  code: 24004
+                  message: Nie znaleziono profilu.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/me
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
 
@@ -977,13 +1108,43 @@ paths:
                 items:
                   $ref: '#/components/schemas/Address'
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses
         '404':
           description: Profil nie znaleziony (24004)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 404
+                  code: 24004
+                  message: Nie znaleziono profilu.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/addresses
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
     post:
@@ -1027,13 +1188,43 @@ paths:
                       field: zip_code
                       message: 'Oczekiwany format: 12-345 lub 12345.'
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses
         '404':
           description: Profil nie znaleziony (24004) — wymagany profil przed dodaniem adresu
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 404
+                  code: 24004
+                  message: Nie znaleziono profilu.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/addresses
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
 
@@ -1071,14 +1262,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              example:
+                error:
+                  status: 400
+                  code: 24000
+                  message: Błąd walidacji danych wejściowych.
+                  timestamp: '2026-06-30T12:00:00.000Z'
+                  path: /api/profiles/addresses/1
+                  details:
+                    - code: 2
+                      field: zip_code
+                      message: 'Oczekiwany format: 12-345 lub 12345.'
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/1
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/1
         '404':
           description: Profil (24004) lub adres (24005) nie znaleziony
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                profileNotFound:
+                  summary: Profil nie znaleziony (24004)
+                  value:
+                    error:
+                      status: 404
+                      code: 24004
+                      message: Nie znaleziono profilu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/1
+                addressNotFound:
+                  summary: Adres nie znaleziony (24005)
+                  value:
+                    error:
+                      status: 404
+                      code: 24005
+                      message: Nie znaleziono adresu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/999
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
     delete:
@@ -1097,13 +1341,55 @@ paths:
         '204':
           description: Adres usunięty
         '401':
-          $ref: '#/components/responses/MissingToken'
+          description: Brak tokenu (94010) lub token nieważny/wygasły (94011).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                missingToken:
+                  summary: Brak tokenu (94010)
+                  value:
+                    error:
+                      status: 401
+                      code: 94010
+                      message: Brak tokenu dostępu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/1
+                invalidToken:
+                  summary: Token nieważny lub wygasły (94011)
+                  value:
+                    error:
+                      status: 401
+                      code: 94011
+                      message: Token jest nieważny lub wygasł.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/1
         '404':
           description: Profil (24004) lub adres (24005) nie znaleziony
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                profileNotFound:
+                  summary: Profil nie znaleziony (24004)
+                  value:
+                    error:
+                      status: 404
+                      code: 24004
+                      message: Nie znaleziono profilu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/1
+                addressNotFound:
+                  summary: Adres nie znaleziony (24005)
+                  value:
+                    error:
+                      status: 404
+                      code: 24005
+                      message: Nie znaleziono adresu.
+                      timestamp: '2026-06-30T12:00:00.000Z'
+                      path: /api/profiles/addresses/999
         '500':
           $ref: '#/components/responses/ServerErrorProfile'
 
